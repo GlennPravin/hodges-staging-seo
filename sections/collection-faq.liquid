@@ -95,16 +95,9 @@
           '</div>' +
         '</section>';
 
-      var schemaEl = document.createElement('script');
-      schemaEl.type = 'application/ld+json';
-      schemaEl.textContent = JSON.stringify(faqData);
-
       var fragment = document.createRange().createContextualFragment(sectionHtml);
       var insertedSection = fragment.querySelector('.collection-faq');
       mountEl.replaceWith(fragment);
-      if (insertedSection && insertedSection.parentNode) {
-        insertedSection.parentNode.insertBefore(schemaEl, insertedSection.nextSibling);
-      }
 
       dataEl.remove();
 

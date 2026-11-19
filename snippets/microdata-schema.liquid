@@ -46,13 +46,15 @@ or change the format of some info
       {%- assign rating = product.metafields.reviews.rating.value -%}
       {%- assign rc = product.metafields.reviews.rating_count.value | default: 0 -%}
 
-      {%- if rating != blank and rc > 0 -%}
+      {%- if rc > 0 and rating.rating != blank -%}
         "aggregateRating": {
           "@type": "AggregateRating",
           "ratingValue": {{ rating.rating | json }},
-          "reviewCount": {{ rc | json }},
+          "bestRating": {{ rating.scale_max | json }},
+          {%- if rating.scale_min != blank -%}
           "worstRating": {{ rating.scale_min | json }},
-          "bestRating": {{ rating.scale_max | json }}
+          {%- endif -%}
+          "reviewCount": {{ rc | json }}
         },
       {%- endif -%}
       {%- if is_barcode_available and is_valid_gtin_length %}
@@ -63,12 +65,14 @@ or change the format of some info
         "productId": {{ product.selected_or_first_available_variant.barcode | json }},
       {%- endif %}
       "brand": {
+        "@type": "Organization",
+        "@id": "https://hodgesbadge.com/#organization",
         "name": {{ product.vendor | json }}
       },
       "name": {{ product.title | json }},
       "description": {{ product.description | strip_html | json }},
       "category": {{ product.type | json }},
-      "url": "{{ product.url }}",
+      "url": {{ shop.url | append: product.url | json }},
       "sku": {{ product.selected_or_first_available_variant.sku | json }},
       "image": {
         "@type": "ImageObject",
@@ -122,6 +126,33 @@ or change the format of some info
       {%- endfor -%}
     ]
   {%- endcapture -%}
+{%- elsif request.page_type == 'collection' -%}
+  {%- unless collection.metafields.global.collection_schema.value != blank -%}
+    {%- capture main_entity_microdata -%}
+      "@type": "CollectionPage",
+      "@id": {{ canonical_url | append: '#collection' | json }},
+      "name": {{ collection.title | json }},
+      "description": {{ collection.description | strip_html | truncate: 300 | json }},
+      "url": {{ canonical_url | json }},
+      "isPartOf": {
+        "@id": "https://hodgesbadge.com/#website"
+      },
+      "mainEntity": {
+        "@type": "ItemList",
+        "numberOfItems": {{ collection.products_count | json }},
+        "itemListElement": [
+          {%- for p in collection.products limit: 24 -%}
+            {
+              "@type": "ListItem",
+              "position": {{ forloop.index }},
+              "url": {{ shop.url | append: p.url | json }},
+              "name": {{ p.title | json }}
+            }{%- unless forloop.last -%},{%- endunless -%}
+          {%- endfor -%}
+        ]
+      }
+    {%- endcapture -%}
+  {%- endunless -%}
 {%- endif -%}
 
 {%- capture breadcrumb_entity_microdata -%}
@@ -134,12 +165,18 @@ or change the format of some info
     }
 
     {%- if request.page_type == 'product' -%}
-      {%- if collection -%}
+      {%- liquid
+        assign crumb_col = collection
+        if crumb_col == blank and product.metafields.custom.primary_collection != blank
+          assign crumb_col = product.metafields.custom.primary_collection.value
+        endif
+      -%}
+      {%- if crumb_col != blank -%}
         ,{
           "@type": "ListItem",
           "position": 2,
-          "name": {{ collection.title | json }},
-          "item": "{{ shop.url }}{{ collection.url }}"
+          "name": {{ crumb_col.title | json }},
+          "item": "{{ shop.url }}{{ crumb_col.url }}"
         }, {
           "@type": "ListItem",
           "position": 3,
@@ -150,6 +187,11 @@ or change the format of some info
         ,{
           "@type": "ListItem",
           "position": 2,
+          "name": {{ 'collection.general.all_products' | t | json }},
+          "item": "{{ shop.url }}{{ routes.all_products_collection_url }}"
+        }, {
+          "@type": "ListItem",
+          "position": 3,
           "name": {{ product.title | json }},
           "item": "{{ shop.url }}{{ product.url }}"
         }
@@ -198,7 +240,7 @@ or change the format of some info
 
     {
       "@type": "Organization",
-      "@id": "{{ shop.url }}/#organization",
+      "@id": "https://hodgesbadge.com/#organization",
       "name": "Hodges Badge Company, Inc.",
       "alternateName": "Hodges Badge",
       "slogan": "Your FIRST PLACE for AWARDS®.",
@@ -221,7 +263,11 @@ or change the format of some info
       },
       "sameAs": [
         "https://www.facebook.com/hodgesbadge",
-        "https://www.instagram.com/hodgesbadge"
+        "https://www.instagram.com/hodgesbadge",
+        "https://www.trustpilot.com/review/hodgesbadge.com",
+        "https://www.linkedin.com/company/hodges-badge-company",
+        "https://www.youtube.com/@HodgesBadge1920",
+        "https://www.pinterest.com/hodgesbadge/"
       ],
       "contactPoint": {
         "@type": "ContactPoint",
@@ -247,10 +293,7 @@ or change the format of some info
           "addressCountry": "US"
         }
       ],
-      "areaServed": {
-          "@type": "Country",
-          "name": "United States"
-        },
+      "areaServed": "US",
       "knowsAbout": [
         "Custom Award Ribbons",
         "Rosette Awards",
@@ -273,13 +316,13 @@ or change the format of some info
 
     ,{
       "@type": "WebSite",
-      "@id": "{{ shop.url }}/#website",
+      "@id": "https://hodgesbadge.com/#website",
       "url": "{{ shop.url }}/",
       "name": "Hodges Badge Company, Inc.",
       "description": "Custom rosettes, ribbons, medals, trophies, plaques and recognition awards handcrafted in the USA since 1920.",
       "inLanguage": "en-US",
       "publisher": {
-        "@id": "{{ shop.url }}/#organization"
+        "@id": "https://hodgesbadge.com/#organization"
       },
       "potentialAction": {
         "@type": "SearchAction",
@@ -298,10 +341,10 @@ or change the format of some info
       "name": "Custom Rosettes & Award Ribbons | Hodges Badge Co. Since 1920",
       "description": "Custom rosettes, ribbons, medals & trophies for horse shows, dog shows, fairs, schools & more. Handcrafted in the USA since 1920.",
       "isPartOf": {
-        "@id": "{{ shop.url }}/#website"
+        "@id": "https://hodgesbadge.com/#website"
       },
       "about": {
-        "@id": "{{ shop.url }}/#organization"
+        "@id": "https://hodgesbadge.com/#organization"
       },
       "inLanguage": "en-US"
     }
@@ -315,30 +358,45 @@ or change the format of some info
     {%- endif -%}
 
     {%- if use_product_metafield_schema and product.metafields.global.product_schema.value != blank -%}
-    ,{{ product.metafields.global.product_schema.value | json }}
+      {%- assign review_count = product.metafields.reviews.rating_count.value | default: 0 -%}
+      {%- assign review_rating = product.metafields.reviews.rating.value.rating -%}
+      {%- assign review_scale = product.metafields.reviews.rating.value.scale_max -%}
+      {%- capture product_schema_json -%}{{ product.metafields.global.product_schema.value | json }}{%- endcapture -%}
+      {%- assign product_schema_json = product_schema_json | strip -%}
+      {%- assign product_schema_start = product_schema_json | slice: 0 -%}
+      {%- capture product_schema_extra -%}{%- endcapture -%}
+      {%- if product_schema_start == '{' -%}
+        {%- if review_count > 0 and review_rating != blank -%}
+          {%- unless product_schema_json contains '"aggregateRating"' -%}
+            {%- capture product_schema_extra -%}{{ product_schema_extra }},"aggregateRating":{"@type":"AggregateRating","ratingValue":{{ review_rating | json }},"bestRating":{{ review_scale | json }},"reviewCount":{{ review_count | json }}}{%- endcapture -%}
+          {%- endunless -%}
+        {%- endif -%}
+        {%- unless product_schema_json contains '"brand"' -%}
+          {%- capture product_schema_extra -%}{{ product_schema_extra }},"brand":{"@type":"Organization","@id":"https://hodgesbadge.com/#organization","name":{{ product.vendor | json }}}{%- endcapture -%}
+        {%- endunless -%}
+      {%- endif -%}
+    ,
+      {%- if product_schema_extra != blank -%}
+        {{ product_schema_json | remove_last: '}' }}{{ product_schema_extra }}}
+      {%- else -%}
+        {{ product_schema_json }}
+      {%- endif -%}
     {%- endif -%}
 
     {%- if request.page_type == 'product' and product.metafields.global.faq_schema.value != blank -%}
-    ,{{ product.metafields.global.faq_schema.value | json }}
+    ,{%- render 'faq-schema-json', faq_metafield: product.metafields.global.faq_schema -%}
     {%- endif -%}
 
     {%- if request.page_type == 'collection' -%}
-      {%- if collection.metafields.global.collection_schema.value != blank
-         or collection.metafields.global.item_list_schema.value != blank
-         or collection.metafields.global.faq_schema.value != blank -%}
-
-        {%- if collection.metafields.global.collection_schema.value != blank -%}
+      {%- if collection.metafields.global.collection_schema.value != blank -%}
     ,{{ collection.metafields.global.collection_schema.value | json }}
-        {%- endif -%}
-
         {%- if collection.metafields.global.item_list_schema.value != blank -%}
     ,{{ collection.metafields.global.item_list_schema.value | json }}
         {%- endif -%}
+      {%- endif -%}
 
-        {%- if collection.metafields.global.faq_schema.value != blank -%}
-    ,{{ collection.metafields.global.faq_schema.value | json }}
-        {%- endif -%}
-
+      {%- if collection.metafields.global.faq_schema.value != blank -%}
+    ,{%- render 'faq-schema-json', faq_metafield: collection.metafields.global.faq_schema -%}
       {%- endif -%}
     {%- endif -%}
 

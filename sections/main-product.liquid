@@ -54,9 +54,14 @@
             </li>
 
             <li class="breadcrumb__item">
-            
-              {%- if collection -%}
-                <a class="breadcrumb__link link" href="{{ collection.url }}">{{ collection.title }}</a> {%- render 'icon', icon: 'arrow-right' -%}
+              {%- liquid
+                assign crumb_col = collection
+                if crumb_col == blank and product.metafields.custom.primary_collection != blank
+                  assign crumb_col = product.metafields.custom.primary_collection.value
+                endif
+              -%}
+              {%- if crumb_col != blank -%}
+                <a class="breadcrumb__link link" href="{{ crumb_col.url }}">{{ crumb_col.title }}</a> {%- render 'icon', icon: 'arrow-right' -%}
               {%- else -%}
                 <a class="breadcrumb__link link" href="{{ routes.all_products_collection_url }}">{{- 'collection.general.all_products' | t -}}</a> {%- render 'icon', icon: 'arrow-right' -%}
               {%- endif -%}

@@ -1,0 +1,12 @@
+{%- comment -%}
+  Plain-text JSON string for FAQ schema.
+  strip_html removes markup, then known HTML entities are decoded, then json encodes the result.
+{%- endcomment -%}
+{%- liquid
+  assign schema_text = text | default: '' | strip_html
+  for i in (1..2)
+    assign schema_text = schema_text | replace: '&quot;', '"' | replace: '&#034;', '"' | replace: '&#039;', "'" | replace: '&#39;', "'" | replace: '&apos;', "'" | replace: '&nbsp;', ' ' | replace: '&lt;', '<' | replace: '&gt;', '>' | replace: '&amp;', '&'
+  endfor
+  assign schema_text = schema_text | strip
+-%}
+{{- schema_text | json -}}

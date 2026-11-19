@@ -1,0 +1,47 @@
+{%- comment -%}
+  One FAQPage object. Questions and answers are plain text.
+  Falls back to the stored metafield JSON when the questions cannot be read.
+{%- endcomment -%}
+{%- assign faq_value = faq_metafield.value -%}
+{%- assign faq_items = faq_value.mainEntity -%}
+{%- assign faq_can_rebuild = false -%}
+{%- if faq_items != blank -%}
+  {%- for item in faq_items limit: 1 -%}
+    {%- if item.name != blank or item.question != blank -%}
+      {%- assign faq_can_rebuild = true -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- if faq_can_rebuild -%}
+{%- capture faq_entities -%}
+  {%- assign faq_sep = false -%}
+  {%- for item in faq_items -%}
+    {%- assign question_html = item.name -%}
+    {%- if question_html == blank -%}
+      {%- assign question_html = item.question -%}
+    {%- endif -%}
+    {%- assign answer_html = item.acceptedAnswer.text -%}
+    {%- if answer_html == blank -%}
+      {%- assign answer_html = item.answer -%}
+    {%- endif -%}
+    {%- if question_html != blank and answer_html != blank -%}
+      {%- if faq_sep -%},{%- endif -%}
+      {%- assign faq_sep = true -%}
+      {
+        "@type": "Question",
+        "name": {%- render 'schema-plain-json', text: question_html -%},
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": {%- render 'schema-plain-json', text: answer_html -%}
+        }
+      }
+    {%- endif -%}
+  {%- endfor -%}
+{%- endcapture -%}
+{
+  "@type": "FAQPage",
+  "mainEntity": [{{ faq_entities }}]
+}
+{%- else -%}
+{{ faq_value | json }}
+{%- endif -%}
