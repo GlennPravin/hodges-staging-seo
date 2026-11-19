@@ -1022,7 +1022,7 @@ text-align: center;
   #disclaimer_alert  .modal-content_popup{
     top: 20% !important;
   }
-  #disclaimer_alert .modalbody h1{
+  #disclaimer_alert .modalbody .modal-title{
     font-size: 12px !important;
   }
   .faq-questions{
